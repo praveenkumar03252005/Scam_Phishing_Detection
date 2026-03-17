@@ -1,0 +1,29 @@
+{
+  "model_name": "Random Forest",
+  "accuracy": 0.989,
+  "f1_score": 0.9895,
+  "roc_auc": 0.9992,
+  "train_samples": 105871,
+  "test_samples": 26468,
+  "total_samples": 132339,
+  "vocabulary_size": 15000,
+  "handcrafted_features": 27,
+  "ngram_range": [
+    1,
+    3
+  ],
+  "classes": [
+    "Legitimate (0)",
+    "Phishing (1)"
+  ],
+  "datasets_used": [
+    "CEAS_08.csv",
+    "Enron.csv",
+    "Ling.csv",
+    "Nazario.csv",
+    "Nigerian_Fraud.csv",
+    "phishing_email.csv",
+    "SpamAssasin.csv"
+  ],
+  "synthetic_samples": "330 legit + 30 spam"
+}
