@@ -1,6 +1,9 @@
 """
 ScamShield — AI Model Training Script
 =======================================
+Trains all 3 models, picks the best one.
+Saves with pickle protocol=4 (Hugging Face compatible).
+
 Dataset: https://www.kaggle.com/datasets/naserabdullahalam/phishing-email-dataset
 
 Supported CSV files (put ALL in same folder as this script):
@@ -11,9 +14,6 @@ Supported CSV files (put ALL in same folder as this script):
   - Nigerian_Fraud.csv
   - phishing_email.csv
   - SpamAssasin.csv
-
-Install requirements:
-  pip install scikit-learn pandas numpy joblib scipy flask flask-cors
 
 Run:
   python train_model.py
@@ -58,80 +58,43 @@ CONFIG = {
 
 # ══════════════════════════════════════════════════
 # DATASET COLUMN MAPPINGS
-# label 1 = phishing/spam, 0 = legitimate
 # ══════════════════════════════════════════════════
 DATASET_CONFIGS = {
-    "CEAS_08.csv": {
-        "text_cols" : ["body"],
-        "label_col" : "label",
-        "label_map" : {1: 1, 0: 0},
-    },
-    "Enron.csv": {
-        "text_cols" : ["body"],
-        "label_col" : "label",
-        "label_map" : {1: 1, 0: 0},
-    },
-    "Ling.csv": {
-        "text_cols" : ["body"],
-        "label_col" : "label",
-        "label_map" : {1: 1, 0: 0},
-    },
-    "Nazario.csv": {
-        "text_cols" : ["body"],
-        "label_col" : "label",
-        "label_map" : {1: 1, 0: 0},
-    },
-    "Nigerian_Fraud.csv": {
-        "text_cols" : ["body"],
-        "label_col" : "label",
-        "label_map" : {1: 1, 0: 0},
-    },
-    "phishing_email.csv": {
-        "text_cols" : ["text_combined"],
-        "label_col" : "label",
-        "label_map" : {1: 1, 0: 0},
-    },
-    "SpamAssasin.csv": {
-        "text_cols" : ["body"],
-        "label_col" : "label",
-        "label_map" : {1: 1, 0: 0},
-    },
+    "CEAS_08.csv"       : {"text_cols": ["body"],          "label_col": "label", "label_map": {1:1, 0:0}},
+    "Enron.csv"         : {"text_cols": ["body"],          "label_col": "label", "label_map": {1:1, 0:0}},
+    "Ling.csv"          : {"text_cols": ["body"],          "label_col": "label", "label_map": {1:1, 0:0}},
+    "Nazario.csv"       : {"text_cols": ["body"],          "label_col": "label", "label_map": {1:1, 0:0}},
+    "Nigerian_Fraud.csv": {"text_cols": ["body"],          "label_col": "label", "label_map": {1:1, 0:0}},
+    "phishing_email.csv": {"text_cols": ["text_combined"], "label_col": "label", "label_map": {1:1, 0:0}},
+    "SpamAssasin.csv"   : {"text_cols": ["body"],          "label_col": "label", "label_map": {1:1, 0:0}},
 }
 
-
 # ══════════════════════════════════════════════════
-# SYNTHETIC LEGITIMATE EMAILS
-# Fixes false positives for transactional/shipping
-# emails that share words with spam training data
+# SYNTHETIC EMAILS
 # ══════════════════════════════════════════════════
 LEGIT_EMAILS = [
-    # ── Order / Shipping ──
     "Your Amazon order #112-3456789 has shipped. Estimated delivery Tuesday March 19. Track your package at amazon.com/your-orders. Thank you for shopping with us.",
     "Your order from Amazon has been delivered. Your package was left at your front door. If you have any questions contact Amazon customer service.",
     "Hello, your order #445-9921234 is on its way. Expected delivery in 2-3 business days. You can track your shipment on our website.",
     "Your FedEx shipment is out for delivery today. Tracking number 7489234823. Delivery window 10am-2pm. No signature required.",
     "UPS delivery update: Your package is scheduled for delivery today by 8pm. Tracking number 1Z999AA10123456784.",
     "Your DHL express shipment has arrived at the local facility. Delivery attempt will be made tomorrow between 9am and 5pm.",
-    "Thank you for your purchase. Your order has been confirmed and will be dispatched within 1-2 business days. You will receive a tracking number once it ships.",
+    "Thank you for your purchase. Your order has been confirmed and will be dispatched within 1-2 business days.",
     "Order confirmation: We have received your order and it is being processed. You will be notified when it ships.",
-    "Your package could not be delivered today as no one was available. Please reschedule your delivery at ups.com or call customer service.",
-    "Your subscription to Amazon Prime has been renewed for another year. Your card ending in 4242 has been charged $139. Manage your membership at amazon.com/prime.",
-    "Refund processed: We have refunded $49.99 to your original payment method. Please allow 3-5 business days for the amount to appear on your statement.",
+    "Your package could not be delivered today as no one was available. Please reschedule your delivery at ups.com.",
+    "Your subscription to Amazon Prime has been renewed for another year. Your card ending in 4242 has been charged $139.",
+    "Refund processed: We have refunded $49.99 to your original payment method. Please allow 3-5 business days.",
     "Your Flipkart order has been shipped via Delhivery. Expected delivery by March 20. Track at flipkart.com/orders.",
     "Your Swiggy order is on the way! Your delivery partner Rajesh is heading to your location. Estimated arrival: 25 minutes.",
     "Zomato order confirmed. Your food from Paradise Biryani is being prepared. Estimated delivery time: 35-40 minutes.",
-
-    # ── Banking / Finance (legit) ──
     "Your monthly bank statement for February 2026 is now available. Log in to your online banking portal to view your statement.",
-    "Transaction alert: A purchase of $45.99 was made at Starbucks on your card ending 4321 on March 15 at 8:34am. If this was not you please call us.",
+    "Transaction alert: A purchase of $45.99 was made at Starbucks on your card ending 4321 on March 15 at 8:34am.",
     "Your credit card payment of $250.00 has been received and applied to your account. Your new balance is $1,240.50.",
     "Your salary of $3,200.00 has been credited to your account ending 8765 on March 1 2026. Available balance: $4,150.20.",
     "Your SBI account has been credited with Rs 15,000 via NEFT transfer from HDFC Bank on 16-Mar-2026.",
     "Your HDFC credit card bill of Rs 8,450 is due on March 25. Pay now at hdfcbank.com to avoid late fees.",
     "Your fixed deposit of Rs 50,000 has matured. The amount has been credited to your savings account ending 3421.",
     "Your auto payment of $89.99 for Netflix was successfully processed on March 1. Your subscription is active.",
-
-    # ── GitHub / Tech ──
     "Your pull request #142 Fix login bug has been successfully merged into the main branch by a collaborator.",
     "GitHub Actions: Your workflow CI pipeline passed all 24 checks on branch main. Deployment to production completed successfully.",
     "New issue opened on your repository: Issue #89 - API rate limit not returning correct headers. Assigned to you.",
@@ -139,55 +102,41 @@ LEGIT_EMAILS = [
     "Two-factor authentication was successfully enabled on your GitHub account. This adds an extra layer of security.",
     "Your npm package express-validator version 3.2.1 has been successfully published to the npm registry.",
     "Stack Overflow: Your answer on How to center a div in CSS received 47 upvotes and has been marked as accepted.",
-
-    # ── Travel / Booking ──
-    "Your flight booking is confirmed. PNR: ABC123. IndiGo flight 6E-204 from Hyderabad to Mumbai on March 20 at 07:30. Check in at indigo.in.",
-    "Your hotel reservation at Marriott Hyderabad is confirmed. Check-in: March 20, Check-out: March 22. Confirmation #MH29341.",
+    "Your flight booking is confirmed. PNR: ABC123. IndiGo flight 6E-204 from Hyderabad to Mumbai on March 20 at 07:30.",
+    "Your hotel reservation at Marriott Hyderabad is confirmed. Check-in: March 20, Check-out: March 22.",
     "Booking confirmation: Your Ola cab is scheduled for March 19 at 6:00 AM from Hitech City to Rajiv Gandhi Airport.",
     "Your IRCTC ticket is booked. Train 12723 Telangana Express. PNR 4128394721. Journey date: 20-Mar-2026. Seat: S4 45.",
-    "MakeMyTrip: Your bus from Hyderabad to Bangalore is confirmed. Departure March 20 at 9:00 PM. Seat 14A. Boarding point: Ameerpet.",
-
-    # ── Subscription / SaaS ──
-    "Your Spotify Premium subscription has been renewed for Rs 119. Your next billing date is April 15 2026. Manage at spotify.com/account.",
+    "MakeMyTrip: Your bus from Hyderabad to Bangalore is confirmed. Departure March 20 at 9:00 PM. Seat 14A.",
+    "Your Spotify Premium subscription has been renewed for Rs 119. Your next billing date is April 15 2026.",
     "Your Microsoft 365 subscription has been renewed. Thank you for your continued subscription. No action needed.",
     "Your Notion Plus plan has been renewed for $16. You can manage your subscription at notion.so/settings.",
     "Your Adobe Creative Cloud subscription renews on April 1. Your payment method on file will be charged $54.99.",
     "Your Zoom Pro plan payment of $14.99 has been processed. Your plan is active through April 2026.",
     "Receipt from Apple: You purchased Procreate for $12.99. Your Apple ID is used@icloud.com.",
     "Your Google One storage plan (200 GB) has been renewed for Rs 130. Storage is shared across Gmail Drive and Photos.",
-
-    # ── Social / Notifications ──
     "LinkedIn: John Smith has accepted your connection request. You are now connected with 342 people.",
     "Your tweet received 1,200 impressions this week. Top tweet: your post about machine learning got 45 likes.",
     "Instagram: Your photo received 234 likes. Keep sharing moments with your followers.",
     "You have a new match on LinkedIn Jobs. Software Engineer at Microsoft in Hyderabad matches your profile.",
     "Your Glassdoor job alert: 5 new Software Engineer jobs in Hyderabad matching your search criteria.",
-
-    # ── Healthcare / Utilities ──
     "Your appointment with Dr. Sharma is confirmed for March 20 at 11:00 AM at Apollo Hospital Hyderabad.",
     "Your electricity bill for February is Rs 1,240. Due date: March 25. Pay at tsredco.telangana.gov.in.",
     "Your Airtel postpaid bill of Rs 499 is ready. Auto payment will be processed on March 20 from your saved card.",
     "BSNL: Your broadband plan has been renewed for another month. Speed: 100 Mbps. Valid till April 15.",
-
-    # ── Education ──
     "Your Coursera certificate for Machine Learning Specialization is ready. Download at coursera.org/certificates.",
     "Udemy: Your course Python for Beginners has been updated with 3 new lectures on data visualization.",
     "Your exam results for Semester 4 are now available on the student portal. Login to view your grades.",
     "Your application to IIT Hyderabad M.Tech program has been received. You will hear back within 4 weeks.",
-
-    # ── Receipts / Confirmations ──
     "Receipt: You spent Rs 340 at Cafe Coffee Day on March 15 at 3:45 PM. Payment via Google Pay.",
     "PhonePe: You sent Rs 500 to Ramesh Kumar (9876543210) successfully on March 16 at 2:14 PM.",
     "Google Pay: Payment of Rs 1,200 to BigBasket was successful. Order #BB29341 confirmed.",
     "Paytm: Your recharge of Rs 239 for 9876543210 was successful. Validity: 28 days. Data: 1.5GB/day.",
     "Your Ola Money wallet has been credited with Rs 100 as a cashback reward. Valid for 30 days.",
     "Your CRED coins 2,500 have been credited for your credit card payment. Redeem at cred.club.",
-
-    # ── Work / Professional ──
     "Meeting reminder: Team standup tomorrow at 10:00 AM IST on Google Meet. Agenda: sprint review and planning.",
-    "Your Zoom meeting has been scheduled for March 20 at 2:00 PM with 5 participants. Join link sent to all participants.",
+    "Your Zoom meeting has been scheduled for March 20 at 2:00 PM with 5 participants.",
     "Your leave request for March 20-22 has been approved by your manager. Enjoy your time off.",
-    "Your performance review for Q1 2026 is scheduled with HR on March 25 at 3 PM. Please prepare your self-assessment.",
+    "Your performance review for Q1 2026 is scheduled with HR on March 25 at 3 PM.",
     "Slack: You have 3 unread messages in the engineering channel from your teammates.",
     "Your Jira ticket PROJ-1234 has been assigned to you. Priority: High. Due date: March 22.",
 ]
@@ -204,22 +153,6 @@ SPAM_EMAILS = [
     "Dear account holder, your bank account has been compromised. Wire transfer $200 processing fee via Bitcoin to unlock your frozen funds of $45,000 held in escrow.",
     "Congratulations dear friend! You have been selected to receive a Nigerian government inheritance fund of $8.5 million dollars. Send your details to claim your share immediately.",
 ]
-
-
-# ══════════════════════════════════════════════════
-# TEXT CLEANING
-# ══════════════════════════════════════════════════
-def clean_text(text):
-    if not isinstance(text, str):
-        return ""
-    text = re.sub(r'\s+', ' ', text)
-    text = re.sub(r'<[^>]+>', ' ', text)
-    text = re.sub(r'https?://\S+', ' URL_TOKEN ', text)
-    text = re.sub(r'www\.\S+', ' URL_TOKEN ', text)
-    text = re.sub(r'\S+@\S+', ' EMAIL_TOKEN ', text)
-    text = re.sub(r'[^\w\s!?$.,]', ' ', text)
-    return text.strip().lower()
-
 
 # ══════════════════════════════════════════════════
 # FEATURE ENGINEERING
@@ -248,8 +181,6 @@ FINANCIAL_WORDS = [
     "lottery", "prize", "winning", "grant", "inheritance",
     "million", "thousand", "refund", "compensation"
 ]
-
-# Legit transactional words — high presence = NOT spam
 LEGIT_INDICATOR_WORDS = [
     "order", "shipped", "delivered", "tracking", "confirmed",
     "receipt", "invoice", "subscription", "renewed", "billing",
@@ -262,10 +193,22 @@ LEGIT_INDICATOR_WORDS = [
 ]
 
 
+def clean_text(text):
+    if not isinstance(text, str):
+        return ""
+    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r'<[^>]+>', ' ', text)
+    text = re.sub(r'https?://\S+', ' URL_TOKEN ', text)
+    text = re.sub(r'www\.\S+', ' URL_TOKEN ', text)
+    text = re.sub(r'\S+@\S+', ' EMAIL_TOKEN ', text)
+    text = re.sub(r'[^\w\s!?$.,]', ' ', text)
+    return text.strip().lower()
+
+
 def extract_features(texts):
     records = []
     for text in texts:
-        t = text.lower()
+        t     = text.lower()
         words = t.split()
         records.append({
             "char_count"           : len(text),
@@ -290,7 +233,6 @@ def extract_features(texts):
             "has_threat"           : 1 if any(x in t for x in ["arrest","lawsuit","legal action","court","criminal"]) else 0,
             "has_password_req"     : 1 if any(x in t for x in ["password","pin","credential","login"]) else 0,
             "has_email_token"      : 1 if "email_token" in t else 0,
-            # ── NEW: legit transactional indicators ──
             "legit_indicator_count": sum(1 for w in LEGIT_INDICATOR_WORDS if w in t),
             "has_order_number"     : 1 if re.search(r'#[\w\-]{5,}', text) else 0,
             "has_tracking_number"  : 1 if re.search(r'\b[A-Z0-9]{10,}\b', text) else 0,
@@ -311,42 +253,34 @@ def load_single_dataset(filepath, cfg):
             df = pd.read_csv(filepath, encoding='latin-1')
 
         df.columns = df.columns.str.strip().str.lower()
-
-        text_cols = [c.lower() for c in cfg["text_cols"]]
-        label_col = cfg["label_col"].lower()
+        text_cols  = [c.lower() for c in cfg["text_cols"]]
+        label_col  = cfg["label_col"].lower()
 
         available_text = [c for c in text_cols if c in df.columns]
         if not available_text:
             candidates = [c for c in df.columns if df[c].dtype == object and c != label_col]
             if not candidates:
-                print(f"      ⚠ No text column found. Columns: {list(df.columns)}")
+                print(f"      ⚠ No text column found.")
                 return None
             available_text = [candidates[0]]
-            print(f"      ℹ Auto text column: '{available_text[0]}'")
 
         if label_col not in df.columns:
-            lbl_candidates = [c for c in df.columns
-                              if df[c].nunique() <= 10 and c not in available_text]
+            lbl_candidates = [c for c in df.columns if df[c].nunique() <= 10 and c not in available_text]
             if not lbl_candidates:
-                print(f"      ⚠ No label column found. Columns: {list(df.columns)}")
                 return None
             label_col = lbl_candidates[0]
-            print(f"      ℹ Auto label column: '{label_col}'")
 
         df["_text"] = df[available_text].fillna("").astype(str).apply(
             lambda row: " ".join(row.values), axis=1
         )
 
         if df[label_col].dtype == object:
-            lbl = df[label_col].str.lower().str.strip()
+            lbl   = df[label_col].str.lower().str.strip()
             phish = {'spam','phishing','scam','fraud','1','true','yes','malicious'}
             legit = {'ham','legitimate','safe','0','false','no','benign','normal'}
-            df["_label"] = lbl.apply(
-                lambda x: 1 if x in phish else (0 if x in legit else None)
-            )
+            df["_label"] = lbl.apply(lambda x: 1 if x in phish else (0 if x in legit else None))
         else:
-            label_map = cfg.get("label_map", {1:1, 0:0})
-            df["_label"] = df[label_col].map(label_map)
+            df["_label"] = df[label_col].map(cfg.get("label_map", {1:1, 0:0}))
 
         df = df.dropna(subset=["_text","_label"])
         df["_label"] = df["_label"].astype(int)
@@ -375,55 +309,39 @@ def load_all_datasets():
         if not os.path.exists(filename):
             print(f"    ⏭  '{filename}' — not found, skipping")
             continue
-
         size_kb = os.path.getsize(filename) // 1024
         print(f"    📂 '{filename}' ({size_kb:,} KB) — loading...")
         df = load_single_dataset(filename, cfg)
-
         if df is not None:
             spam  = (df["label"] == 1).sum()
             legit = (df["label"] == 0).sum()
-            print(f"      ✓ {len(df):,} usable rows  |  Phishing: {spam:,}  |  Legit: {legit:,}")
+            print(f"      ✓ {len(df):,} rows  |  Phishing: {spam:,}  |  Legit: {legit:,}")
             all_dfs.append(df)
             loaded_files.append(filename)
         print()
 
-    # ── Inject synthetic legit + spam samples ──
     print(f"    📂 Injecting synthetic training samples...")
-
-    # Oversample legit synthetics 5x to really teach the model
-    legit_synthetic = pd.DataFrame({
-        "text" : LEGIT_EMAILS * 5,
-        "label": [0] * (len(LEGIT_EMAILS) * 5)
-    })
-    spam_synthetic = pd.DataFrame({
-        "text" : SPAM_EMAILS * 3,
-        "label": [1] * (len(SPAM_EMAILS) * 3)
-    })
-    synthetic_df = pd.concat([legit_synthetic, spam_synthetic], ignore_index=True)
-    all_dfs.append(synthetic_df)
-    print(f"      ✓ {len(legit_synthetic)} legit + {len(spam_synthetic)} spam synthetic samples added\n")
+    legit_synthetic = pd.DataFrame({"text": LEGIT_EMAILS * 5, "label": [0] * (len(LEGIT_EMAILS) * 5)})
+    spam_synthetic  = pd.DataFrame({"text": SPAM_EMAILS  * 3, "label": [1] * (len(SPAM_EMAILS)  * 3)})
+    all_dfs.append(pd.concat([legit_synthetic, spam_synthetic], ignore_index=True))
+    print(f"      ✓ {len(legit_synthetic)} legit + {len(spam_synthetic)} spam synthetic samples\n")
 
     if not all_dfs:
-        raise ValueError(
-            "\n❌ No CSV files found in the current directory!\n"
-            "   Place the CSV files in the SAME folder as this script.\n"
-        )
+        raise ValueError("❌ No CSV files found! Place CSVs in the same folder as this script.")
 
-    combined = pd.concat(all_dfs, ignore_index=True)
-    combined = combined.drop_duplicates(subset=["text"]).dropna(subset=["text","label"])
-
+    combined    = pd.concat(all_dfs, ignore_index=True)
+    combined    = combined.drop_duplicates(subset=["text"]).dropna(subset=["text","label"])
     phishing_df = combined[combined["label"] == 1]
     legit_df    = combined[combined["label"] == 0]
 
-    print(f"\n    ══ COMBINED DATASET ══")
-    print(f"    Total rows     : {len(combined):,}")
-    print(f"    Phishing       : {len(phishing_df):,} ({len(phishing_df)/len(combined)*100:.1f}%)")
-    print(f"    Legitimate     : {len(legit_df):,} ({len(legit_df)/len(combined)*100:.1f}%)")
+    print(f"    ══ COMBINED DATASET ══")
+    print(f"    Total      : {len(combined):,}")
+    print(f"    Phishing   : {len(phishing_df):,} ({len(phishing_df)/len(combined)*100:.1f}%)")
+    print(f"    Legitimate : {len(legit_df):,} ({len(legit_df)/len(combined)*100:.1f}%)")
 
     ratio = max(len(phishing_df), len(legit_df)) / max(min(len(phishing_df), len(legit_df)), 1)
     if ratio > 3:
-        print(f"\n    ⚖  Class imbalance detected (ratio {ratio:.1f}x) — balancing...")
+        print(f"\n    ⚖  Balancing classes (ratio {ratio:.1f}x)...")
         min_cls = min(len(phishing_df), len(legit_df))
         target  = min(min_cls * 2, max(len(phishing_df), len(legit_df)))
         if len(phishing_df) > len(legit_df):
@@ -437,36 +355,43 @@ def load_all_datasets():
 
 
 # ══════════════════════════════════════════════════
-# MODEL TRAINING
+# MODEL TRAINING — all 3, best one wins
 # ══════════════════════════════════════════════════
 def train_and_select(X_combined, y_train):
     models = {
-        "Logistic Regression" : LogisticRegression(
+        "Logistic Regression": LogisticRegression(
             C=1.0, max_iter=1000, class_weight="balanced",
             solver="lbfgs", random_state=42
         ),
-        "Linear SVM"          : LinearSVC(
+        "Linear SVM": LinearSVC(
             C=1.0, class_weight="balanced",
-            max_iter=3000, random_state=42
+            max_iter=2000, random_state=42
         ),
-        "Random Forest"       : RandomForestClassifier(
+        "Random Forest": RandomForestClassifier(
             n_estimators=200, class_weight="balanced",
             n_jobs=-1, random_state=42
         ),
     }
 
     results = {}
-    print("\n[4/6] Training models with 5-fold cross validation...\n")
+    print("\n[4/6] Training all 3 models with 5-fold cross validation...\n")
     for name, model in models.items():
-        print(f"    Training {name}...")
+        print(f"    ⏳ Training {name}...")
         scores = cross_val_score(model, X_combined, y_train, cv=5, scoring="f1", n_jobs=-1)
         results[name] = {"model": model, "cv_f1": scores.mean(), "cv_std": scores.std()}
         print(f"    ✓  CV F1: {scores.mean():.4f} ± {scores.std():.4f}\n")
 
+    print(f"    {'─'*42}")
+    print(f"    {'Model':<22} {'CV F1':>8}  {'Std':>6}")
+    print(f"    {'─'*42}")
+    for name, res in results.items():
+        print(f"    {name:<22} {res['cv_f1']:>8.4f}  {res['cv_std']:>6.4f}")
+    print(f"    {'─'*42}")
+
     best_name  = max(results, key=lambda k: results[k]["cv_f1"])
     best_model = results[best_name]["model"]
     best_model.fit(X_combined, y_train)
-    print(f"    ★  Best model → {best_name}  (F1 = {results[best_name]['cv_f1']:.4f})")
+    print(f"\n    ★  Best model → {best_name}  (F1 = {results[best_name]['cv_f1']:.4f})")
     return best_model, best_name
 
 
@@ -474,7 +399,6 @@ def train_and_select(X_combined, y_train):
 # MAIN
 # ══════════════════════════════════════════════════
 def main():
-
     df, loaded_files = load_all_datasets()
 
     print("\n[2/6] Cleaning and normalizing text...")
@@ -489,18 +413,16 @@ def main():
         X, y, test_size=CONFIG["test_size"],
         random_state=CONFIG["random_state"], stratify=y
     )
-    print(f"\n[3/6] Train/Test Split")
-    print(f"    Train : {len(X_train):,} samples")
-    print(f"    Test  : {len(X_test):,} samples")
+    print(f"\n[3/6] Train: {len(X_train):,}  |  Test: {len(X_test):,}")
 
     print("\n       Fitting TF-IDF vectorizer...")
     vectorizer = TfidfVectorizer(
-        max_features = CONFIG["max_features"],
-        ngram_range  = CONFIG["ngram_range"],
-        stop_words   = "english",
-        sublinear_tf = True,
-        min_df       = 2,
-        lowercase    = True,
+        max_features=CONFIG["max_features"],
+        ngram_range=CONFIG["ngram_range"],
+        stop_words="english",
+        sublinear_tf=True,
+        min_df=2,
+        lowercase=True,
     )
     X_train_tfidf = vectorizer.fit_transform(X_train)
     X_test_tfidf  = vectorizer.transform(X_test)
@@ -511,10 +433,9 @@ def main():
     X_test_feat    = extract_features(X_test)
     X_train_feat_s = sp.csr_matrix(X_train_feat.values.astype(float))
     X_test_feat_s  = sp.csr_matrix(X_test_feat.values.astype(float))
+    X_train_comb   = sp.hstack([X_train_tfidf, X_train_feat_s])
+    X_test_comb    = sp.hstack([X_test_tfidf,  X_test_feat_s])
     print(f"    ✓ {len(X_train_feat.columns)} handcrafted features per sample")
-
-    X_train_comb = sp.hstack([X_train_tfidf, X_train_feat_s])
-    X_test_comb  = sp.hstack([X_test_tfidf,  X_test_feat_s])
 
     best_model, best_name = train_and_select(X_train_comb, y_train)
 
@@ -537,21 +458,25 @@ def main():
     cm     = confusion_matrix(y_test, y_pred)
     report = classification_report(y_test, y_pred, target_names=["Legitimate","Phishing"])
 
-    print(f"\n    {'─'*40}")
-    print(f"    Accuracy   : {acc*100:.2f}%")
-    print(f"    F1 Score   : {f1:.4f}")
-    if auc: print(f"    ROC-AUC    : {auc:.4f}")
+    print(f"\n    Accuracy : {acc*100:.2f}%")
+    print(f"    F1 Score : {f1:.4f}")
+    if auc: print(f"    ROC-AUC  : {auc:.4f}")
     print(f"\n    Confusion Matrix:")
-    print(f"    {'':14} Pred Legit   Pred Phish")
-    print(f"    {'True Legit':14} {cm[0][0]:^11,} {cm[0][1]:^11,}")
-    print(f"    {'True Phish':14} {cm[1][0]:^11,} {cm[1][1]:^11,}")
+    print(f"               Pred Legit  Pred Phish")
+    print(f"    True Legit  {cm[0][0]:^10,} {cm[0][1]:^10,}")
+    print(f"    True Phish  {cm[1][0]:^10,} {cm[1][1]:^10,}")
     print(f"\n    Full Report:")
     for line in report.split("\n"):
         print(f"    {line}")
 
-    print(f"\n[6/6] Saving artifacts...")
-    joblib.dump(best_model, CONFIG["model_output"])
-    joblib.dump(vectorizer, CONFIG["vectorizer_output"])
+    # ── SAVE WITH PROTOCOL=4 ──
+    # protocol=4 is compatible with Python 3.8+
+    # Fixes KeyError: 118 crash on Hugging Face / Railway
+    print(f"\n[6/6] Saving artifacts (protocol=4 for Hugging Face compatibility)...")
+    joblib.dump(best_model, CONFIG["model_output"],      protocol=4)
+    joblib.dump(vectorizer, CONFIG["vectorizer_output"], protocol=4)
+    print(f"    ✓ {CONFIG['model_output']}  ({os.path.getsize(CONFIG['model_output'])//1024/1024:.1f} MB)")
+    print(f"    ✓ {CONFIG['vectorizer_output']}  ({os.path.getsize(CONFIG['vectorizer_output'])//1024:.0f} KB)")
 
     metadata = {
         "model_name"           : best_name,
@@ -567,38 +492,37 @@ def main():
         "classes"              : ["Legitimate (0)", "Phishing (1)"],
         "datasets_used"        : loaded_files,
         "synthetic_samples"    : f"{len(LEGIT_EMAILS)*5} legit + {len(SPAM_EMAILS)*3} spam",
+        "pickle_protocol"      : 4,
     }
     with open(CONFIG["metadata_output"], "w") as f:
         json.dump(metadata, f, indent=2)
+    print(f"    ✓ {CONFIG['metadata_output']}")
 
     with open(CONFIG["report_output"], "w") as f:
         f.write("SCAMSHIELD MODEL TRAINING REPORT\n")
         f.write("="*55 + "\n\n")
-        f.write(f"Best Model       : {best_name}\n")
-        f.write(f"Accuracy         : {acc*100:.2f}%\n")
-        f.write(f"F1 Score         : {f1:.4f}\n")
-        if auc: f.write(f"ROC-AUC          : {auc:.4f}\n")
-        f.write(f"Total Samples    : {len(df):,}\n")
-        f.write(f"Datasets Used    : {', '.join(loaded_files)}\n\n")
+        f.write(f"Best Model   : {best_name}\n")
+        f.write(f"Accuracy     : {acc*100:.2f}%\n")
+        f.write(f"F1 Score     : {f1:.4f}\n")
+        if auc: f.write(f"ROC-AUC      : {auc:.4f}\n")
+        f.write(f"Total Samples: {len(df):,}\n\n")
         f.write("Confusion Matrix:\n")
-        f.write(f"              Pred Legit  Pred Phish\n")
-        f.write(f"True Legit    {cm[0][0]:^10,} {cm[0][1]:^10,}\n")
-        f.write(f"True Phish    {cm[1][0]:^10,} {cm[1][1]:^10,}\n\n")
+        f.write(f"             Pred Legit  Pred Phish\n")
+        f.write(f"True Legit   {cm[0][0]:^10,} {cm[0][1]:^10,}\n")
+        f.write(f"True Phish   {cm[1][0]:^10,} {cm[1][1]:^10,}\n\n")
         f.write("Classification Report:\n")
         f.write(report)
 
+    print(f"\n{'='*60}")
+    print(f"  ✅ TRAINING COMPLETE!")
+    print(f"  Best Model : {best_name}")
+    print(f"  Accuracy   : {acc*100:.2f}%  |  F1: {f1:.4f}")
+    print(f"{'='*60}")
+    print(f"\n  Upload these 3 files to Hugging Face:")
     print(f"    ✓ {CONFIG['model_output']}")
     print(f"    ✓ {CONFIG['vectorizer_output']}")
     print(f"    ✓ {CONFIG['metadata_output']}")
-    print(f"    ✓ {CONFIG['report_output']}")
-
-    print(f"\n{'='*60}")
-    print(f"  ✅ TRAINING COMPLETE!")
-    print(f"  Accuracy : {acc*100:.2f}%  |  F1 Score : {f1:.4f}")
-    print(f"  Model    : {best_name}")
-    print(f"{'='*60}")
-    print(f"\n  Next step → run the API:")
-    print(f"    python app.py\n")
+    print(f"\n  No need to run resave_model.py — protocol=4 already applied!\n")
 
 
 if __name__ == "__main__":

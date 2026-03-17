@@ -1,6 +1,6 @@
 {
   "model_name": "Random Forest",
-  "accuracy": 0.989,
+  "accuracy": 0.9891,
   "f1_score": 0.9895,
   "roc_auc": 0.9992,
   "train_samples": 105871,
@@ -25,5 +25,6 @@
     "phishing_email.csv",
     "SpamAssasin.csv"
   ],
-  "synthetic_samples": "330 legit + 30 spam"
+  "synthetic_samples": "330 legit + 30 spam",
+  "pickle_protocol": 4
 }

@@ -41,7 +41,6 @@ main{position:relative;z-index:5;max-width:860px;margin:0 auto;padding:88px 20px
 .hero h1{font-family:'Orbitron',monospace;font-size:clamp(1.5rem,4.5vw,2.4rem);font-weight:900;background:linear-gradient(135deg,#fff 0%,var(--cyan) 55%,#0090b0 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.15;margin-bottom:10px;}
 .hero p{font-size:0.95rem;color:var(--text-dim);max-width:460px;margin:0 auto;line-height:1.75;font-weight:300;}
 
-/* API URL config bar */
 .config-bar{background:rgba(0,212,255,0.04);border:1px solid rgba(0,212,255,0.15);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
 .config-label{font-family:'Share Tech Mono',monospace;font-size:0.58rem;color:var(--cyan);letter-spacing:2px;opacity:0.7;white-space:nowrap;}
 .config-inp{flex:1;min-width:200px;background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:6px;padding:7px 11px;color:var(--text);font-family:'Share Tech Mono',monospace;font-size:0.72rem;outline:none;transition:border-color 0.2s;}
@@ -119,7 +118,6 @@ textarea{resize:vertical;min-height:165px;}
 .prog-fill.warn{background:linear-gradient(90deg,#ff9500,#ffb700);}
 .prog-fill.danger{background:linear-gradient(90deg,#ff3366,#cc0033);}
 
-/* ML model info badge */
 .model-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(0,212,255,0.05);border:1px solid rgba(0,212,255,0.15);border-radius:8px;padding:8px 13px;margin-bottom:14px;font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--cyan);opacity:0.8;}
 
 .signals-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:16px;}
@@ -151,7 +149,6 @@ textarea{resize:vertical;min-height:165px;}
 .advice-title{font-family:'Share Tech Mono',monospace;font-size:0.57rem;letter-spacing:3px;color:var(--cyan);opacity:0.6;margin-bottom:9px;}
 .advice-text{font-size:0.88rem;line-height:1.75;color:var(--text);}
 
-/* Error box */
 .err-box{background:var(--red-dim);border:1px solid rgba(255,51,102,0.3);border-radius:9px;padding:14px 16px;margin-bottom:14px;font-family:'Share Tech Mono',monospace;font-size:0.7rem;color:var(--red);line-height:1.6;display:none;}
 
 .reset-btn{width:100%;margin-top:14px;background:transparent;border:1px solid var(--border);color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:0.62rem;letter-spacing:2px;padding:11px;border-radius:8px;cursor:pointer;transition:all 0.2s;}
@@ -202,8 +199,8 @@ footer{position:relative;z-index:5;text-align:center;padding:18px;border-top:1px
 
   <!-- API URL Config -->
   <div class="config-bar">
-    <span class="config-label">// FLASK API URL</span>
-    <input class="config-inp" id="api-url-inp" type="text" value="http://192.168.1.14:5000" placeholder="http://192.168.1.14:5000">
+    <span class="config-label">// API URL</span>
+    <input class="config-inp" id="api-url-inp" type="text" placeholder="Auto-detected...">
     <button class="config-btn" onclick="testConnection()">TEST CONNECTION</button>
     <span id="api-status">—</span>
   </div>
@@ -289,11 +286,8 @@ We detected suspicious activity on your account. Click here to verify immediatel
         <div class="card-title">// ANALYSIS COMPLETE — THREAT REPORT</div>
       </div>
       <div class="card-body">
-
         <div class="err-box" id="err-box"></div>
-
         <div id="model-badge-wrap"></div>
-
         <div class="verdict" id="verdict-banner">
           <div class="v-icon" id="v-icon"></div>
           <div class="v-info">
@@ -305,22 +299,17 @@ We detected suspicious activity on your account. Click here to verify immediatel
             <div class="v-score-lbl">THREAT SCORE</div>
           </div>
         </div>
-
         <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
-
         <label class="flabel" style="margin-bottom:10px;">// DETECTED SIGNALS</label>
         <div class="signals-grid" id="signals-grid"></div>
-
         <div class="dblock" id="sender-block" style="display:none;">
           <div class="dblock-title">// SENDER ANALYSIS</div>
           <div id="sender-rows"></div>
         </div>
-
         <div class="advice">
           <div class="advice-title">// RECOMMENDED ACTION</div>
           <div class="advice-text" id="advice-text"></div>
         </div>
-
         <button class="reset-btn" onclick="resetAll()">↺ ANALYZE ANOTHER EMAIL</button>
       </div>
     </div>
@@ -368,9 +357,23 @@ We detected suspicious activity on your account. Click here to verify immediatel
 <footer>SCAMSHIELD v2.1 · ML-POWERED · NO DATA STORED · FOR EDUCATIONAL USE</footer>
 
 <script>
-// ── CONFIG ──
-// Change this to your Flask server IP if needed
-let API_BASE = localStorage.getItem('scamshield_api') || 'http://192.168.1.14:5000';
+// ── AUTO-DETECT API URL ──
+// When running on Hugging Face Spaces, the API is on the same server.
+// When running locally, it falls back to localhost.
+function getDefaultApiBase() {
+  const host = window.location.hostname;
+  // On Hugging Face Spaces (*.hf.space) — same origin
+  if (host.includes('hf.space') || host.includes('huggingface')) {
+    return window.location.origin;
+  }
+  // Saved preference
+  const saved = localStorage.getItem('scamshield_api');
+  if (saved) return saved;
+  // Local fallback
+  return window.location.origin;
+}
+
+let API_BASE = getDefaultApiBase();
 
 window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('api-url-inp').value = API_BASE;
@@ -390,15 +393,15 @@ async function testConnection() {
   statusEl.className   = 'checking';
 
   try {
-    const res = await fetch(base + '/api/health', { signal: AbortSignal.timeout(5000) });
+    const res  = await fetch(base + '/api/health', { signal: AbortSignal.timeout(8000) });
     const data = await res.json();
     API_BASE = base;
     localStorage.setItem('scamshield_api', base);
     const accStr = data.accuracy ? (data.accuracy * 100).toFixed(1) + '%' : '??';
     statusEl.textContent = '✓ CONNECTED — ' + (data.model || 'ML MODEL') + ' (' + accStr + ' ACC)';
-    statusEl.className = 'ok';
-    navDot.textContent  = 'ML ONLINE';
-    navDot.style.color  = 'var(--green)';
+    statusEl.className   = 'ok';
+    navDot.textContent   = 'ML ONLINE';
+    navDot.style.color   = 'var(--green)';
   } catch (e) {
     statusEl.textContent = '✗ CANNOT REACH ' + base;
     statusEl.className   = 'err';
@@ -438,7 +441,6 @@ async function runScanAnim() {
     document.getElementById('ss'+i).classList.add('done');
     document.getElementById('ss'+i).textContent = '✓ ' + SCAN_STEPS[i];
   }
-  // last step stays "running" while we wait for the API
   document.getElementById('ss'+(SCAN_STEPS.length-1)).classList.add('running');
 }
 
@@ -463,77 +465,62 @@ async function startScan() {
     return;
   }
 
-  // Build the full text to send (combine everything)
   const emailText = [
     sender  ? 'From: ' + sender  : '',
     subject ? 'Subject: ' + subject : '',
     body
   ].filter(Boolean).join('\n');
 
-  // Show scanning UI
-  document.getElementById('input-card').style.display  = 'none';
+  document.getElementById('input-card').style.display   = 'none';
   document.getElementById('tips-section').style.display = 'none';
-  document.getElementById('scan-card').style.display   = 'block';
-  document.getElementById('result').style.display      = 'none';
+  document.getElementById('scan-card').style.display    = 'block';
+  document.getElementById('result').style.display       = 'none';
 
-  // Start animation (non-blocking)
   const animPromise = runScanAnim();
 
-  // ── CALL FLASK API ──
   let apiResult = null;
   let apiError  = null;
 
   try {
     const base = getApiBase();
-    const res = await fetch(base + '/api/analyze', {
+    const res  = await fetch(base + '/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text: emailText, sender, subject }),
-      signal: AbortSignal.timeout(15000)
+      signal: AbortSignal.timeout(20000)
     });
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
       throw new Error(errData.error || 'Server returned ' + res.status);
     }
-
     apiResult = await res.json();
-
   } catch (e) {
-    apiError = e.message || 'Could not reach Flask API';
+    apiError = e.message || 'Could not reach API';
   }
 
-  // Finish animation
   await animPromise;
   await sleep(300);
 
-  // Hide scan, show result
   document.getElementById('scan-card').style.display = 'none';
   showResult(apiResult, apiError, { sender, subject, body: emailText });
 }
 
 // ── RENDER RESULT ──
-// Supports two response shapes from Flask:
-//   Shape A (simple): { prediction: "spam"|"ham", confidence: 0.97, probability: 0.97 }
-//   Shape B (rich):   { is_spam: true, score: 85, label: "SCAM", signals: [...], advice: "..." }
 function showResult(data, error, input) {
-
-  // Show error box if API failed
   const errBox = document.getElementById('err-box');
   if (error) {
     errBox.style.display = 'block';
-    errBox.innerHTML = '⚠ API ERROR: ' + error + '<br><span style="opacity:0.6;font-size:0.62rem;">Make sure app.py is running and the URL above is correct. Check: ' + getApiBase() + '/api/health</span>';
+    errBox.innerHTML = '⚠ API ERROR: ' + error + '<br><span style="opacity:0.6;font-size:0.62rem;">Make sure the Space is running. Check: ' + getApiBase() + '/api/health</span>';
   } else {
     errBox.style.display = 'none';
   }
 
-  // If API failed entirely, fall back to client-side analysis
   if (!data) {
     data = clientFallback(input.sender, input.subject, input.body);
-    document.getElementById('err-box').innerHTML += '<br><span style="color:var(--orange)">⚡ Showing client-side fallback analysis below.</span>';
+    document.getElementById('err-box').innerHTML += '<br><span style="color:var(--orange)">⚡ Showing client-side fallback analysis.</span>';
   }
 
-  // ── NORMALISE — maps app.py response fields directly ──
   let score, isSpam, label, modelName, accuracy, signals, advice;
 
   score     = data.score ?? 0;
@@ -543,7 +530,6 @@ function showResult(data, error, input) {
   accuracy  = null;
   advice    = data.advice || buildAdvice(score);
 
-  // app.py signals use "type" key; frontend needs "t" key
   if (data.signals && data.signals.length > 0) {
     signals = data.signals.map(s => ({ t: s.type, icon: s.icon, name: s.name, desc: s.desc }));
   } else {
@@ -551,45 +537,32 @@ function showResult(data, error, input) {
   }
   score = Math.min(100, Math.max(0, Math.round(score)));
 
-  // Model badge
   const badgeWrap = document.getElementById('model-badge-wrap');
-  if (modelName) {
-    badgeWrap.innerHTML = `<div class="model-badge">🤖 MODEL: ${modelName}${accuracy ? ' · ACC: ' + (accuracy*100).toFixed(1) + '%' : ''}</div>`;
-  } else {
-    badgeWrap.innerHTML = '';
-  }
+  badgeWrap.innerHTML = modelName
+    ? `<div class="model-badge">🤖 MODEL: ${modelName}${accuracy ? ' · ACC: ' + (accuracy*100).toFixed(1) + '%' : ''}</div>`
+    : '';
 
-  // Verdict level
   let level, icon, desc;
-  if (score <= 30) {
-    level='safe'; icon='✅';
-    desc='No significant scam indicators detected. This email appears to be legitimate, but always stay cautious.';
-  } else if (score <= 65) {
-    level='warn'; icon='⚠️';
-    desc='Several warning signs detected. This email shows patterns common in phishing and scam emails. Proceed with extreme caution.';
-  } else {
-    level='danger'; icon='🚨';
-    desc='Multiple strong scam indicators detected. This email shows characteristics highly consistent with phishing or fraud.';
-  }
+  if (score <= 30)      { level='safe';   icon='✅'; desc='No significant scam indicators detected. This email appears to be legitimate.'; }
+  else if (score <= 65) { level='warn';   icon='⚠️'; desc='Several warning signs detected. Proceed with extreme caution.'; }
+  else                  { level='danger'; icon='🚨'; desc='Multiple strong scam indicators. Highly consistent with phishing or fraud.'; }
 
   document.getElementById('verdict-banner').className = 'verdict ' + level;
-  document.getElementById('v-icon').textContent  = icon;
-  document.getElementById('v-title').textContent = label;
-  document.getElementById('v-desc').textContent  = desc;
-  document.getElementById('v-score').textContent = score;
+  document.getElementById('v-icon').textContent       = icon;
+  document.getElementById('v-title').textContent      = label;
+  document.getElementById('v-desc').textContent       = desc;
+  document.getElementById('v-score').textContent      = score;
 
   const progFill = document.getElementById('prog-fill');
   progFill.className = 'prog-fill ' + level;
   setTimeout(() => { progFill.style.width = score + '%'; }, 100);
 
-  // Signals
   document.getElementById('signals-grid').innerHTML = signals.map(s => `
     <div class="sig ${s.t}">
       <div class="sig-head"><span class="sig-icon">${s.icon}</span><span class="sig-name">${s.name}</span></div>
       <div class="sig-desc">${s.desc}</div>
     </div>`).join('');
 
-  // Sender block
   const senderBlock = document.getElementById('sender-block');
   if (data.sender_rows && data.sender_rows.length > 0) {
     senderBlock.style.display = 'block';
@@ -607,150 +580,63 @@ function showResult(data, error, input) {
     senderBlock.style.display = 'none';
   }
 
-  // Advice
   document.getElementById('advice-text').innerHTML = advice;
-
-  document.getElementById('result').style.display = 'block';
+  document.getElementById('result').style.display  = 'block';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// ── HELPER: build signals from a simple score ──
 function buildSignalsFromScore(score, isSpam, data) {
   const signals = [];
   if (isSpam) {
-    if (score >= 80) signals.push({ t:'flag', icon:'🚨', name:'High-Confidence Scam', desc:`ML model classified this email as spam with ${score}% threat score.` });
+    if (score >= 80) signals.push({ t:'flag', icon:'🚨', name:'High-Confidence Scam', desc:`ML model classified this as spam with ${score}% threat score.` });
     else             signals.push({ t:'warn', icon:'⚠️', name:'Possible Spam', desc:`ML model flagged this as suspicious. Confidence: ${score}%.` });
-    signals.push({ t:'flag', icon:'🎭', name:'Phishing Pattern Detected', desc:'Content matches known scam/phishing patterns in training data.' });
+    signals.push({ t:'flag', icon:'🎭', name:'Phishing Pattern Detected', desc:'Content matches known scam/phishing patterns.' });
   } else {
-    signals.push({ t:'ok', icon:'✅', name:'Clean Email', desc:`ML model classified this as legitimate mail (${100-score}% confidence).` });
-    signals.push({ t:'ok', icon:'🛡️', name:'No Scam Patterns', desc:'Content does not match known phishing or spam patterns.' });
-  }
-  if (data.features) {
-    Object.entries(data.features).slice(0,2).forEach(([k,v]) => {
-      signals.push({ t:'ok', icon:'📊', name: k.replace(/_/g,' ').toUpperCase(), desc: String(v) });
-    });
+    signals.push({ t:'ok', icon:'✅', name:'Clean Email', desc:`ML model classified this as legitimate (${100-score}% confidence).` });
+    signals.push({ t:'ok', icon:'🛡️', name:'No Scam Patterns', desc:'Does not match known phishing or spam patterns.' });
   }
   return signals;
 }
 
-// ── HELPER: build advice text ──
 function buildAdvice(score) {
-  if (score <= 30)  return '✅ <strong>This email appears safe.</strong> No major red flags from the ML model. However, never share passwords or financial details over email regardless of who it appears to be from.';
-  if (score <= 65)  return '⚠️ <strong>Treat this email with caution.</strong> The ML model detected suspicious patterns. Do NOT click any links. Do NOT provide personal information. If it claims to be from a company, contact them directly via their official website.';
-  return '🚨 <strong>Do NOT engage with this email.</strong> The ML model has high confidence this is a scam or phishing attempt. Do NOT click any links. Do NOT reply. Mark it as spam and delete immediately. If it involves your bank, call them directly using their official number.';
+  if (score <= 30)  return '✅ <strong>This email appears safe.</strong> No major red flags detected. Never share passwords or financial details over email.';
+  if (score <= 65)  return '⚠️ <strong>Treat with caution.</strong> Do NOT click any links. Do NOT provide personal information. Contact the company via their official website.';
+  return '🚨 <strong>Do NOT engage.</strong> High probability of scam or phishing. Do NOT click links or reply. Mark as spam and delete immediately.';
 }
 
-// ── CLIENT-SIDE FALLBACK (used only if API is unreachable) ──
 function clientFallback(sender, subject, body) {
   const text = (body + ' ' + subject).toLowerCase();
   let score = 0;
-  const urgencyWords = ['urgent','immediately','act now','verify now','suspended','account blocked','expire'];
-  urgencyWords.forEach(w => { if (text.includes(w)) score += 12; });
-  if (sender && (sender.includes('paypa1') || sender.includes('amaz0n') || sender.includes('0'))) score += 30;
+  ['urgent','immediately','act now','verify now','suspended','account blocked','expire'].forEach(w => { if (text.includes(w)) score += 12; });
+  if (sender && (sender.includes('paypa1') || sender.includes('amaz0n'))) score += 30;
   if (text.includes('bit.ly') || text.includes('tinyurl')) score += 20;
   if (text.includes('prize') || text.includes('won') || text.includes('lottery')) score += 25;
-  return { score: Math.min(score, 100), is_spam: score > 40, label: score > 65 ? 'HIGH THREAT' : score > 35 ? 'SUSPICIOUS' : 'LIKELY SAFE', model: 'Client Fallback (API offline)' };
+  return { score: Math.min(score, 100), is_spam: score > 40, verdict: score > 65 ? 'HIGH THREAT — LIKELY SCAM' : score > 35 ? 'SUSPICIOUS EMAIL' : 'LIKELY SAFE' };
 }
-
 
 // ── TIP POPUPS ──
 const TIP_DATA = {
-  sender: {
-    icon: '📨',
-    title: 'SENDER DOMAIN SPOOFING',
-    subtitle: 'IDENTITY DECEPTION TECHNIQUE',
-    body: `Scammers fake the "From" address to look like a trusted company. They use lookalike domains with tiny spelling changes — swapping letters for numbers or adding extra words — so the email looks legitimate at a glance. Always check the full email address, not just the display name.`,
-    examples: [
-      { bad: true,  text: 'support@paypa1.com — "l" replaced with "1"' },
-      { bad: true,  text: 'security@amaz0n-alerts.com — fake subdomain' },
-      { bad: true,  text: 'noreply@apple-id-verify.net — brand in wrong domain' },
-      { bad: false, text: 'no-reply@amazon.com — real Amazon domain' },
-    ],
-    tip: `🛡️ <strong>How to spot it:</strong> Hover over the sender name to reveal the actual email address. If the domain after @ looks even slightly off — numbers replacing letters, extra words, unusual extensions like .tk or .xyz — it's fake.`
-  },
-  links: {
-    icon: '🔗',
-    title: 'SUSPICIOUS LINKS',
-    subtitle: 'URL OBFUSCATION TECHNIQUE',
-    body: `Phishing emails hide dangerous URLs using link shorteners (bit.ly, tinyurl) or lookalike domains that redirect you to fake login pages. Once you enter your credentials, they are stolen instantly. The link text can say anything — what matters is where it actually goes.`,
-    examples: [
-      { bad: true,  text: 'http://bit.ly/verify-paypal — shortened, hides real destination' },
-      { bad: true,  text: 'http://secure-login.paypal.tk/verify — fake domain' },
-      { bad: true,  text: 'http://192.168.1.1/login — IP address instead of domain' },
-      { bad: false, text: 'https://www.paypal.com/signin — real HTTPS domain' },
-    ],
-    tip: `🛡️ <strong>How to spot it:</strong> Hover over any link before clicking — the real URL shows in your browser's status bar. Never click shortened links in emails. If in doubt, go directly to the website by typing the URL yourself.`
-  },
-  urgency: {
-    icon: '⚠️',
-    title: 'URGENCY & PRESSURE TACTICS',
-    subtitle: 'SOCIAL ENGINEERING TECHNIQUE',
-    body: `Scammers create artificial time pressure to stop you thinking clearly. Phrases like "Act now!", "24 hours remaining", or "Your account will be closed" are designed to trigger panic and make you click without verifying. Legitimate companies never demand immediate action under threat.`,
-    examples: [
-      { bad: true,  text: '"URGENT: Your account will be permanently closed in 24 hours"' },
-      { bad: true,  text: '"FINAL NOTICE: Respond immediately or face legal action"' },
-      { bad: true,  text: '"Last chance! Your prize expires TODAY at midnight"' },
-      { bad: false, text: '"Your statement is ready to view" — no pressure, no deadline' },
-    ],
-    tip: `🛡️ <strong>How to spot it:</strong> Any email demanding immediate action is a red flag. Real banks, companies and government agencies give you time and contact you through multiple channels. When in doubt, call the company directly using a number from their official website.`
-  },
-  financial: {
-    icon: '💰',
-    title: 'FINANCIAL SCAM PATTERNS',
-    subtitle: 'FRAUD & THEFT TECHNIQUE',
-    body: `Financial scams promise impossible rewards — lottery winnings, inheritance funds, investment returns — or create fake emergencies requiring you to send money. They ask for payment via untraceable methods like gift cards, Bitcoin, or wire transfer, which cannot be reversed.`,
-    examples: [
-      { bad: true,  text: '"You have won $2,500,000 in the international lottery!"' },
-      { bad: true,  text: '"Send $500 processing fee via Western Union to claim your inheritance"' },
-      { bad: true,  text: '"Pay outstanding tax debt in iTunes gift cards to avoid arrest"' },
-      { bad: false, text: '"Your refund of $45.99 has been processed to your card" — no action needed' },
-    ],
-    tip: `🛡️ <strong>How to spot it:</strong> You cannot win a lottery you never entered. No legitimate organization asks for payment via gift cards or Bitcoin. Any unsolicited offer of money is a scam — real windfalls don't arrive by email.`
-  },
-  credential: {
-    icon: '🔐',
-    title: 'CREDENTIAL PHISHING',
-    subtitle: 'ACCOUNT TAKEOVER TECHNIQUE',
-    body: `Phishing emails direct you to fake login pages that look identical to real websites. When you enter your username and password, they are sent directly to the attacker. They then use your credentials to access your real accounts, steal money, or sell your data.`,
-    examples: [
-      { bad: true,  text: '"Click here to verify your account and re-enter your password"' },
-      { bad: true,  text: '"Confirm your identity: enter your SSN and credit card number"' },
-      { bad: true,  text: '"Unusual login detected — validate your credentials immediately"' },
-      { bad: false, text: '"Use the forgot password link at the official website if needed"' },
-    ],
-    tip: `🛡️ <strong>How to spot it:</strong> No legitimate company will ever ask for your password via email. Always navigate to websites directly by typing the URL — never through email links. Enable two-factor authentication on all important accounts.`
-  },
-  impersonation: {
-    icon: '🎭',
-    title: 'BRAND IMPERSONATION',
-    subtitle: 'IDENTITY FRAUD TECHNIQUE',
-    body: `Scammers copy the logos, colors, and writing style of trusted brands — Amazon, PayPal, your bank, government agencies — to make fake emails look real. They exploit the trust you have in those brands to lower your guard. The email design can be pixel-perfect while the sender domain gives it away.`,
-    examples: [
-      { bad: true,  text: 'Fake Amazon email from orders@amazon-delivery-update.com' },
-      { bad: true,  text: 'Fake IRS notice demanding immediate payment to avoid arrest' },
-      { bad: true,  text: 'Fake Microsoft alert claiming your account has been hacked' },
-      { bad: false, text: 'Real PayPal emails only come from @paypal.com' },
-    ],
-    tip: `🛡️ <strong>How to spot it:</strong> Check the sender domain — real Amazon emails only come from @amazon.com, real PayPal only from @paypal.com. Generic greetings like "Dear Customer" instead of your real name are a strong indicator of impersonation.`
-  }
+  sender: { icon:'📨', title:'SENDER DOMAIN SPOOFING', subtitle:'IDENTITY DECEPTION TECHNIQUE', body:`Scammers fake the "From" address to look like a trusted company. They use lookalike domains with tiny spelling changes — swapping letters for numbers or adding extra words.`, examples:[{bad:true,text:'support@paypa1.com — "l" replaced with "1"'},{bad:true,text:'security@amaz0n-alerts.com — fake subdomain'},{bad:true,text:'noreply@apple-id-verify.net — brand in wrong domain'},{bad:false,text:'no-reply@amazon.com — real Amazon domain'}], tip:`🛡️ <strong>How to spot it:</strong> Hover over the sender name to reveal the actual email address. If the domain looks slightly off — numbers replacing letters, unusual extensions like .tk or .xyz — it's fake.` },
+  links: { icon:'🔗', title:'SUSPICIOUS LINKS', subtitle:'URL OBFUSCATION TECHNIQUE', body:`Phishing emails hide dangerous URLs using link shorteners or lookalike domains that redirect you to fake login pages. Once you enter your credentials, they are stolen instantly.`, examples:[{bad:true,text:'http://bit.ly/verify-paypal — shortened, hides real destination'},{bad:true,text:'http://secure-login.paypal.tk/verify — fake domain'},{bad:true,text:'http://192.168.1.1/login — IP address instead of domain'},{bad:false,text:'https://www.paypal.com/signin — real HTTPS domain'}], tip:`🛡️ <strong>How to spot it:</strong> Hover over any link before clicking. Never click shortened links in emails. If in doubt, type the URL yourself.` },
+  urgency: { icon:'⚠️', title:'URGENCY & PRESSURE TACTICS', subtitle:'SOCIAL ENGINEERING TECHNIQUE', body:`Scammers create artificial time pressure to stop you thinking clearly. Phrases like "Act now!" or "Your account will be closed" are designed to trigger panic.`, examples:[{bad:true,text:'"URGENT: Your account will be permanently closed in 24 hours"'},{bad:true,text:'"FINAL NOTICE: Respond immediately or face legal action"'},{bad:true,text:'"Last chance! Your prize expires TODAY"'},{bad:false,text:'"Your statement is ready to view" — no pressure, no deadline'}], tip:`🛡️ <strong>How to spot it:</strong> Any email demanding immediate action is a red flag. Real companies give you time and contact you through multiple channels.` },
+  financial: { icon:'💰', title:'FINANCIAL SCAM PATTERNS', subtitle:'FRAUD & THEFT TECHNIQUE', body:`Financial scams promise impossible rewards or create fake emergencies requiring you to send money via untraceable methods like gift cards or Bitcoin.`, examples:[{bad:true,text:'"You have won $2,500,000 in the international lottery!"'},{bad:true,text:'"Send $500 processing fee via Western Union to claim your inheritance"'},{bad:true,text:'"Pay tax debt in iTunes gift cards to avoid arrest"'},{bad:false,text:'"Your refund of $45.99 has been processed" — no action needed'}], tip:`🛡️ <strong>How to spot it:</strong> You cannot win a lottery you never entered. No legitimate organization asks for gift cards or Bitcoin.` },
+  credential: { icon:'🔐', title:'CREDENTIAL PHISHING', subtitle:'ACCOUNT TAKEOVER TECHNIQUE', body:`Phishing emails direct you to fake login pages identical to real websites. When you enter your password, it is sent directly to the attacker.`, examples:[{bad:true,text:'"Click here to verify your account and re-enter your password"'},{bad:true,text:'"Confirm your identity: enter your SSN and credit card number"'},{bad:true,text:'"Unusual login detected — validate your credentials immediately"'},{bad:false,text:'"Use the forgot password link at the official website if needed"'}], tip:`🛡️ <strong>How to spot it:</strong> No legitimate company will ever ask for your password via email. Enable two-factor authentication on all important accounts.` },
+  impersonation: { icon:'🎭', title:'BRAND IMPERSONATION', subtitle:'IDENTITY FRAUD TECHNIQUE', body:`Scammers copy the logos and style of trusted brands to make fake emails look real. The design can be pixel-perfect while the sender domain gives it away.`, examples:[{bad:true,text:'Fake Amazon email from orders@amazon-delivery-update.com'},{bad:true,text:'Fake IRS notice demanding immediate payment to avoid arrest'},{bad:true,text:'Fake Microsoft alert claiming your account was hacked'},{bad:false,text:'Real PayPal emails only come from @paypal.com'}], tip:`🛡️ <strong>How to spot it:</strong> Real Amazon emails only come from @amazon.com. Generic greetings like "Dear Customer" instead of your real name are a strong red flag.` }
 };
 
 function showTipPopup(type) {
   const d = TIP_DATA[type];
   if (!d) return;
-
-  document.getElementById('popup-icon').textContent    = d.icon;
-  document.getElementById('popup-title').textContent   = d.title;
+  document.getElementById('popup-icon').textContent     = d.icon;
+  document.getElementById('popup-title').textContent    = d.title;
   document.getElementById('popup-subtitle').textContent = d.subtitle;
-  document.getElementById('popup-body').textContent    = d.body;
-  document.getElementById('popup-tip').innerHTML       = d.tip;
-
+  document.getElementById('popup-body').textContent     = d.body;
+  document.getElementById('popup-tip').innerHTML        = d.tip;
   document.getElementById('popup-examples-list').innerHTML = d.examples.map(e => `
     <div style="display:flex;align-items:flex-start;gap:8px;font-family:Share Tech Mono,monospace;font-size:0.65rem;line-height:1.5;">
       <span style="color:${e.bad ? '#ff3366' : '#00ff88'};flex-shrink:0;">${e.bad ? '✗' : '✓'}</span>
       <span style="color:${e.bad ? 'rgba(255,100,130,0.85)' : 'rgba(0,255,136,0.75)'};">${e.text}</span>
     </div>`).join('');
-
   document.getElementById('tip-overlay').style.display = 'block';
   document.getElementById('tip-popup').style.display   = 'block';
   document.body.style.overflow = 'hidden';
@@ -762,19 +648,17 @@ function closeTipPopup() {
   document.body.style.overflow = '';
 }
 
-// Close on Escape key
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeTipPopup(); });
 
-// ── RESET ──
 function resetAll() {
   ['f-body','f-sender','f-subject','q-sender','q-subject','q-link','q-body'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  document.getElementById('prog-fill').style.width = '0%';
-  document.getElementById('result').style.display      = 'none';
-  document.getElementById('scan-card').style.display   = 'none';
-  document.getElementById('input-card').style.display  = 'block';
+  document.getElementById('prog-fill').style.width      = '0%';
+  document.getElementById('result').style.display       = 'none';
+  document.getElementById('scan-card').style.display    = 'none';
+  document.getElementById('input-card').style.display   = 'block';
   document.getElementById('tips-section').style.display = 'block';
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
